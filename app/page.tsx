@@ -48,7 +48,13 @@ export default function Home() {
           if (err.code === 4902) {
             await eth.request({
               method: 'wallet_addEthereumChain',
-              params: [{ chainId: '0x2105', chainName: 'Base Mainnet', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: ['https://mainnet.base.org'], blockExplorerUrls: ['https://basescan.org'] }]
+              params: [{ 
+                chainId: '0x2105', 
+                chainName: 'Base Mainnet', 
+                nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, 
+                rpcUrls: ['https://mainnet.base.org'], 
+                blockExplorerUrls: ['https://basescan.org'] 
+              }]
             });
           }
         }
@@ -107,47 +113,48 @@ export default function Home() {
     const eth = (window as any).ethereum;
     if (typeof eth !== "undefined") {
       const provider = new ethers.BrowserProvider(eth);
-      provider.listAccounts().then(acc => { if (acc.length > 0) { setWallet(acc[0].address); cargarDatos(provider); } });
+      provider.listAccounts().then(acc => { 
+        if (acc.length > 0) { 
+          setWallet(acc[0].address); 
+          cargarDatos(provider); 
+        } 
+      });
     }
   }, []);
 
   return (
     <main className="min-h-screen bg-[#000000] text-white font-sans selection:bg-amber-500/30 overflow-x-hidden pb-10">
-      
       <nav className="w-full border-b border-white/5 bg-black/50 backdrop-blur-md sticky top-0 z-50 px-8 h-20 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_10px_#f59e0b]"></div>
-          <span className="text-xl font-black tracking-tighter uppercase italic text-white">VAULTUM<span className="text-amber-500">.</span></span>
+          <span className="text-xl font-black tracking-tighter uppercase italic">VAULTUM<span className="text-amber-500">.</span></span>
         </div>
-        <button onClick={conectarBilletera} className="text-[10px] font-black border border-white/20 px-6 py-2 rounded-full hover:bg-white hover:text-black transition-all uppercase tracking-widest text-white">
+        <button onClick={conectarBilletera} className="text-[10px] font-black border border-white/20 px-6 py-2 rounded-full hover:bg-white hover:text-black transition-all uppercase tracking-widest">
           {wallet ? `MI CUENTA: ${wallet.substring(0,6)}...` : "CONECTAR MI BILLETERA"}
         </button>
       </nav>
 
       <section className="max-w-6xl mx-auto px-6 text-center mt-20">
-        <h1 className="text-5xl md:text-[90px] font-bold tracking-tighter mb-4 leading-none uppercase text-white">
+        <h1 className="text-5xl md:text-[90px] font-bold tracking-tighter mb-4 leading-none uppercase">
           EL ÚLTIMO <br/> 
-          <span className="text-gray-500 italic font-light text-3xl md:text-7xl tracking-tight">se lleva el pozo entero.</span>
+          <span className="text-gray-500 italic font-light text-3xl md:text-7xl">se lleva el pozo entero.</span>
         </h1>
-        <p className="text-gray-400 text-xs md:text-sm font-bold uppercase tracking-[0.4em] mb-16 opacity-60">
-          Bóveda de Liquidez Transparente y Auditable
-        </p>
         
-        <div className="bg-[#0A0A0A] border border-white/5 rounded-[50px] p-8 md:p-16 shadow-[0_50px_100px_-20px_rgba(0,0,0,1)] relative overflow-hidden max-w-4xl mx-auto">
+        <div className="bg-[#0A0A0A] border border-white/5 rounded-[50px] p-8 md:p-16 shadow-[0_50px_100px_-20px_rgba(0,0,0,1)] relative overflow-hidden max-w-4xl mx-auto mt-16">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent"></div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-12 items-center">
-            <div className="bg-white/[0.02] border border-white/5 rounded-[40px] p-10 flex flex-col justify-center text-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-12 items-center text-center">
+            <div className="bg-white/[0.02] border border-white/5 rounded-[40px] p-10 flex flex-col justify-center">
               <p className="text-[10px] text-gray-600 uppercase tracking-widest font-black mb-4">Pozo Acumulado</p>
               <div className="flex items-baseline justify-center gap-2 mb-1">
-                <span className="text-6xl md:text-7xl font-medium tracking-tighter text-white">{totalEth.toFixed(4)}</span>
+                <span className="text-6xl md:text-7xl font-medium tracking-tighter">{totalEth.toFixed(4)}</span>
                 <span className="text-amber-500 text-xl font-black italic">ETH</span>
               </div>
               <p className="text-2xl text-gray-500 font-light italic">≈ {pozoUsd}</p>
             </div>
 
-            <div className="bg-white/[0.02] border border-white/5 rounded-[40px] p-10 flex flex-col justify-center text-center">
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-4 text-white">Tiempo Restante</p>
+            <div className="bg-white/[0.02] border border-white/5 rounded-[40px] p-10 flex flex-col justify-center">
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-4">Tiempo Restante</p>
               <div className="text-3xl md:text-4xl font-mono font-bold text-white tracking-tight uppercase">
                 {loading ? (
                   <div className="flex justify-center items-center gap-1 opacity-40 italic">
@@ -160,7 +167,7 @@ export default function Home() {
           </div>
 
           <button onClick={ejecutarCompra} disabled={isBuying || isFinished} className="w-full py-7 bg-white text-black rounded-[30px] font-black text-[13px] uppercase tracking-[0.5em] hover:bg-amber-500 hover:text-white transition-all shadow-xl active:scale-95 mb-10">
-            {isFinished ? "BÓVEDA FINALIZADA" : isBuying ? "CONFIRMANDO..." : `INGRESAR AL POZO (~$${ticketUsd})`}
+            {isFinished ? "BÓVEDA SELLADA" : isBuying ? "CONFIRMANDO..." : `INGRESAR AL POZO (~$${ticketUsd})`}
           </button>
           
           <div className="p-8 bg-white/[0.01] border border-white/5 rounded-3xl">
