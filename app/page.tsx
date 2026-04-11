@@ -62,8 +62,10 @@ export default function Home() {
         const accounts = await provider.send("eth_requestAccounts", []);
         setWallet(accounts[0]);
         await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x2105' }] });
-      } catch (e) { alert("Error al conectar: Asegúrate de estar en la red Base."); }
-    } else { window.open("https://metamask.io/download/", "_blank"); }
+      } catch (e) { console.error(e); }
+    } else {
+      window.open("https://metamask.io/download/", "_blank");
+    }
   };
 
   const ejecutarCompra = async () => {
@@ -75,20 +77,16 @@ export default function Home() {
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(contractAddress, contractABI, signer);
       
-      // FORZAMOS EL ENVÍO DE ETH AQUÍ:
+      // LA TRANSACCIÓN REAL: Descuenta 0.0008 ETH de la billetera
       const tx = await contract.comprarAcceso({ 
         value: ethers.parseEther("0.0008") 
       });
       
       await tx.wait();
       window.location.reload();
-    } catch (e: any) {
-      setIsBuying(false);
-      if (e.code === "INSUFFICIENT_FUNDS") {
-        alert("No tienes suficiente saldo (ETH en red Base) para cubrir el ticket + gas.");
-      } else {
-        alert("La transacción fue cancelada o falló.");
-      }
+    } catch (e) { 
+      setIsBuying(false); 
+      alert("Error: Asegúrate de tener suficiente saldo en Red Base (aprox. $3 USD) para cubrir el ticket y el gas.");
     }
   };
 
@@ -113,7 +111,7 @@ export default function Home() {
           <span className="text-xl font-black tracking-tighter uppercase italic">VAULTUM<span className="text-amber-500">.</span></span>
         </div>
         <button onClick={conectarBilletera} className="text-[10px] font-black border border-white/20 px-6 py-2.5 rounded-full hover:bg-white hover:text-black transition-all uppercase tracking-widest bg-black">
-          {wallet ? `CUENTA: ${wallet.substring(0,6)}...` : "CONECTAR MI BILLETERA"}
+          {wallet ? `CONECTADO: ${wallet.substring(0,6)}...` : "VINCULAR BILLETERA"}
         </button>
       </nav>
 
@@ -127,8 +125,8 @@ export default function Home() {
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-amber-500 to-transparent"></div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16">
-            <div className="bg-white/[0.02] border border-white/5 rounded-[45px] p-12 text-center">
-              <p className="text-[10px] text-gray-600 uppercase tracking-widest font-black mb-6">Capital Acumulado</p>
+            <div className="bg-white/[0.02] border border-white/5 rounded-[45px] p-12">
+              <p className="text-[10px] text-gray-600 uppercase tracking-widest font-black mb-6">Pozo Acumulado</p>
               <div className="flex items-baseline justify-center gap-3 mb-2">
                 <span className="text-6xl md:text-8xl font-medium tracking-tighter">{totalEth.toFixed(4)}</span>
                 <span className="text-amber-500 text-2xl font-black italic">ETH</span>
@@ -136,54 +134,54 @@ export default function Home() {
               <p className="text-3xl text-gray-500 font-light italic">≈ {pozoUsd}</p>
             </div>
 
-            <div className="bg-white/[0.02] border border-white/5 rounded-[45px] p-12 text-center">
+            <div className="bg-white/[0.02] border border-white/5 rounded-[45px] p-12">
               <p className="text-[10px] text-gray-600 uppercase tracking-widest font-black mb-6">Tiempo Restante</p>
               <div className="text-3xl md:text-4xl font-mono font-bold text-white tracking-tighter uppercase">
-                {loading ? "SINCRONIZANDO..." : timeLeft}
+                {loading ? "CARGANDO..." : timeLeft}
               </div>
             </div>
           </div>
 
           <button onClick={ejecutarCompra} disabled={isBuying || isFinished} className="w-full py-8 bg-white text-black rounded-[35px] font-black text-[14px] uppercase tracking-[0.5em] hover:bg-amber-500 hover:text-white transition-all shadow-xl active:scale-95 mb-14">
-            {isFinished ? "BÓVEDA FINALIZADA" : isBuying ? "CONFIRMANDO..." : `INGRESAR AL POZO (~$${ticketUsd})`}
+            {isFinished ? "BÓVEDA FINALIZADA" : isBuying ? "PROCESANDO PAGO..." : `INGRESAR AL POZO (~$${ticketUsd})`}
           </button>
           
-          {/* SECCIÓN DE INSTRUCCIONES DETALLADAS */}
+          {/* INSTRUCCIONES MEJORADAS */}
           <div className="p-10 bg-white/[0.01] border border-white/5 rounded-[40px] mb-16">
-            <p className="text-[11px] text-amber-500 uppercase tracking-[0.3em] font-black mb-10 italic">Guía de Inicio Rápido</p>
+            <p className="text-[11px] text-amber-500 uppercase tracking-[0.3em] font-black mb-10 italic">¿Cómo participar?</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10 text-[11px] font-black text-gray-400 uppercase tracking-tighter text-center">
-              <div className="flex flex-col items-center gap-4">
+              <a href="https://metamask.io/download/" target="_blank" className="flex flex-col items-center gap-4 hover:text-white transition-colors">
                  <span className="bg-white/5 w-12 h-12 rounded-full flex items-center justify-center text-amber-500 border border-white/10 text-lg">1</span>
-                 <p>Instala MetaMask <br/><span className="text-[9px] font-normal lowercase text-gray-600">En navegador o móvil</span></p>
-              </div>
+                 <p>Obtén MetaMask <br/><span className="text-[9px] font-normal lowercase text-gray-600">(Extensión o App Móvil)</span></p>
+              </a>
               <div className="flex flex-col items-center gap-4">
                  <span className="bg-white/5 w-12 h-12 rounded-full flex items-center justify-center text-amber-500 border border-white/10 text-lg">2</span>
-                 <p>Red Base Mainnet <br/><span className="text-[9px] font-normal lowercase text-gray-600">La App te ayuda a cambiar</span></p>
+                 <p>Conecta a Red Base <br/><span className="text-[9px] font-normal lowercase text-gray-600">Víncula tu wallet arriba</span></p>
               </div>
               <div className="flex flex-col items-center gap-4">
                  <span className="bg-white/5 w-12 h-12 rounded-full flex items-center justify-center text-amber-500 border border-white/10 text-lg">3</span>
-                 <p>0.0008 ETH Mínimo <br/><span className="text-[9px] font-normal lowercase text-gray-600">Aprox. ${ticketUsd} USD</span></p>
+                 <p>Aporta 0.0008 ETH <br/><span className="text-[9px] font-normal lowercase text-gray-600">Suma 60 min. al reloj</span></p>
               </div>
             </div>
           </div>
 
-          {/* SECCIÓN DE CONFIANZA Y MECÁNICA */}
-          <div className="grid md:grid-cols-2 gap-8 text-left">
-            <div className="p-10 bg-[#121212] border border-white/5 rounded-[40px]">
-              <h3 className="text-white font-black text-[12px] uppercase mb-6 tracking-widest flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> LA MECÁNICA DEL JUEGO
-              </h3>
-              <p className="text-[13px] text-gray-500 leading-relaxed uppercase tracking-tighter italic">
-                Cada vez que alguien ingresa a la bóveda, el cronómetro <span className="text-white font-bold">se reinicia a 60 minutos</span>. La competencia termina cuando el reloj llega a cero; en ese instante, el último usuario en aportar se adjudica el pozo acumulado de forma automática.
-              </p>
-            </div>
-            <div className="p-10 bg-[#121212] border border-white/5 rounded-[40px]">
-              <h3 className="text-white font-black text-[12px] uppercase mb-6 tracking-widest flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> TRANSPARENCIA TOTAL
-              </h3>
-              <p className="text-[13px] text-gray-500 leading-relaxed uppercase tracking-tighter italic">
-                Este es un protocolo auditado en la red Base. El <span className="text-white font-bold">90% de cada ticket</span> ingresa directamente al premio mayor visible. El 10% restante se utiliza para el mantenimiento del servidor y seguridad del contrato inteligente.
-              </p>
+          {/* SECCIÓN DE CONFIANZA */}
+          <div className="text-left border-t border-white/5 pt-16">
+            <h2 className="text-2xl md:text-4xl font-bold tracking-tighter uppercase mb-8">
+              Confianza Descentralizada <br/>
+              <span className="text-amber-500 italic font-light text-xl md:text-2xl">Transparencia Inmutable en la Blockchain.</span>
+            </h2>
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="p-8 bg-[#121212] rounded-[30px] border border-white/5">
+                <p className="text-[13px] text-gray-400 leading-relaxed uppercase tracking-tighter italic">
+                  Vaultum no tiene dueños ni administradores. Cada transacción es visible en la red Base y el pozo se entrega automáticamente al ganador por medio de un <span className="text-white font-bold">Contrato Inteligente</span> verificado. El 90% de cada ticket ingresa directamente al pozo.
+                </p>
+              </div>
+              <div className="p-8 bg-[#121212] rounded-[30px] border border-white/5">
+                <p className="text-[13px] text-gray-400 leading-relaxed uppercase tracking-tighter italic">
+                  A diferencia de otros juegos, aquí el tiempo es acumulativo. Cada nuevo ingreso <span className="text-white font-bold">suma 60 minutos exactos</span> al tiempo restante actual, extendiendo la oportunidad de competencia y aumentando el premio final para el último en entrar.
+                </p>
+              </div>
             </div>
           </div>
         </div>
