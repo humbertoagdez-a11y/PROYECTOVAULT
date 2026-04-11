@@ -7,6 +7,7 @@ const BASE_RPC = "https://mainnet.base.org";
 const contractAddress = "0x8402141f87553000579a4b27DF7EFe6880F3E14a";
 const contractABI = [
   "function comprarAcceso() external payable",
+  "function liquidarBoveda() external",
   "function pozoTotal() view returns (uint256)",
   "function tiempoFinalizacion() view returns (uint256)",
   "function ultimoBeneficiario() view returns (address)"
@@ -19,9 +20,10 @@ export default function Home() {
   const [timeObj, setTimeObj] = useState<{d: number, h: number, m: number, s: number} | null>(null);
   const [isBuying, setIsBuying] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
+  const [isWinner, setIsWinner] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Datos financieros
+  // Datos financieros y Semilla
   const capitalSemilla = 0.4532; 
   const totalEth = capitalSemilla + pozoReal;
   const pozoUsd = (totalEth * ethPrice).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -32,18 +34,26 @@ export default function Home() {
       const provider = new ethers.JsonRpcProvider(BASE_RPC);
       const contract = new ethers.Contract(contractAddress, contractABI, provider);
       
-      const [pozoWei, tiempoFin] = await Promise.all([
+      const [pozoWei, tiempoFin, ultimoB] = await Promise.all([
         contract.pozoTotal(),
-        contract.tiempoFinalizacion()
+        contract.tiempoFinalizacion(),
+        contract.ultimoBeneficiario()
       ]);
 
       setPozoReal(parseFloat(ethers.formatEther(pozoWei)));
+      
+      // Lógica de Certeza: ¿Es el usuario conectado el líder actual?
+      if (currentWallet && currentWallet.toLowerCase() === ultimoB.toLowerCase()) {
+        setIsWinner(true);
+      } else {
+        setIsWinner(false);
+      }
       
       const interval = setInterval(() => {
         const now = Math.floor(Date.now() / 1000);
         let diff = Number(tiempoFin) - now;
         
-        // COMPENSACIÓN ESTRATÉGICA: Sumamos 7 días visuales por el capital semilla
+        // COMPENSACIÓN ESTRATÉGICA: 7 Días
         const sieteDiasEnSegundos = 7 * 24 * 3600;
         diff += sieteDiasEnSegundos;
         
@@ -53,6 +63,7 @@ export default function Home() {
           setLoading(false);
           clearInterval(interval);
         } else {
+          setIsFinished(false);
           setTimeObj({
             d: Math.floor(diff / (3600 * 24)),
             h: Math.floor((diff % (3600 * 24)) / 3600),
@@ -87,12 +98,29 @@ export default function Home() {
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(contractAddress, contractABI, signer);
       const tx = await contract.comprarAcceso({ value: ethers.parseEther("0.0008") });
-      await tx.wait(); // Espera a que la blockchain confirme
-      cargarDatos(wallet); // Actualiza números sin recargar página
+      await tx.wait();
+      cargarDatos(wallet); 
       setIsBuying(false);
     } catch (e) { 
       setIsBuying(false); 
-      alert("Transacción cancelada. Asegúrate de tener saldo suficiente (aprox $3 USD) en tu billetera de red Base.");
+      alert("Transacción cancelada. Verifica tener saldo suficiente de ETH en la red Base.");
+    }
+  };
+
+  const ejecutarReclamo = async () => {
+    setIsBuying(true);
+    try {
+      const eth = (window as any).ethereum;
+      const provider = new ethers.BrowserProvider(eth);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(contractAddress, contractABI, signer);
+      const tx = await contract.liquidarBoveda();
+      await tx.wait();
+      alert("¡Felicidades! Los fondos han sido transferidos a tu billetera.");
+      window.location.reload();
+    } catch (e) {
+      setIsBuying(false);
+      alert("Error al reclamar la bóveda. Verifica tu conexión.");
     }
   };
 
@@ -106,6 +134,21 @@ export default function Home() {
     };
     fetchPrice();
     cargarDatos();
+  }, []);
+
+  // Escuchar cambios de billetera en tiempo real
+  useEffect(() => {
+    if ((window as any).ethereum) {
+      (window as any).ethereum.on('accountsChanged', (accounts: string[]) => {
+        if (accounts.length > 0) {
+          setWallet(accounts[0]);
+          cargarDatos(accounts[0]);
+        } else {
+          setWallet(null);
+          setIsWinner(false);
+        }
+      });
+    }
   }, []);
 
   return (
@@ -124,7 +167,7 @@ export default function Home() {
 
       <section className="max-w-6xl mx-auto px-4 md:px-6 text-center mt-12 md:mt-24">
         
-        {/* TÍTULO PRINCIPAL */}
+        {/* TÍTULO PRINCIPAL DE IMPACTO */}
         <h1 className="text-5xl md:text-[95px] font-bold tracking-tighter mb-4 md:mb-6 leading-none uppercase">
           EL ÚLTIMO <br/> 
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-gray-200 via-gray-400 to-gray-600 italic font-light text-3xl md:text-7xl">
@@ -132,14 +175,14 @@ export default function Home() {
           </span>
         </h1>
         <p className="text-amber-500 text-xs md:text-sm font-bold uppercase tracking-[0.3em] md:tracking-[0.4em] mb-12 md:mb-16">
-          Juego de Estrategia ● Red Base
+          Protocolo de Liquidez Inmutable ● Red Base
         </p>
         
         {/* PANEL CENTRAL: POZO Y RELOJ */}
         <div className="bg-[#0D0D0D] border border-white/10 rounded-[40px] md:rounded-[60px] p-6 md:p-16 shadow-[0_0_80px_rgba(0,0,0,0.6)] relative overflow-hidden max-w-5xl mx-auto">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-amber-500 to-transparent"></div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-10">
             
             {/* PANEL POZO */}
             <div className="bg-gradient-to-b from-white/[0.04] to-transparent border border-white/5 rounded-[30px] p-8 md:p-14 text-center shadow-inner">
@@ -150,10 +193,9 @@ export default function Home() {
               </div>
               <p className="text-2xl md:text-3xl text-gray-400 font-light italic">≈ {pozoUsd}</p>
               
-              {/* TEXTO DE SEMILLA HUMANIZADO Y CLARO */}
               <div className="mt-8 pt-6 border-t border-white/10">
                 <p className="text-[11px] md:text-[12px] text-gray-400 leading-relaxed font-bold tracking-wide italic">
-                  <span className="text-amber-500">Premio Inicial Asegurado:</span> El pozo ya incluye ~$1,000 USD aportados por los creadores para garantizar un premio masivo desde el primer minuto.
+                  <span className="text-amber-500">Premio Inicial Asegurado:</span> El pozo ya incluye ~$1,000 USD aportados por los creadores para garantizar un premio masivo desde el inicio.
                 </p>
               </div>
             </div>
@@ -165,31 +207,31 @@ export default function Home() {
               {loading || !timeObj ? (
                 <div className="text-2xl font-mono text-gray-600 animate-pulse tracking-widest">CARGANDO...</div>
               ) : (
-                <div className="flex justify-center gap-3 md:gap-5">
+                <div className="flex justify-center gap-2 md:gap-4">
                   <div className="flex flex-col items-center">
-                    <div className="bg-black border border-white/10 rounded-2xl w-14 h-16 md:w-22 md:h-24 flex items-center justify-center shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]">
-                      <span className="text-3xl md:text-6xl font-black font-mono">{timeObj.d}</span>
+                    <div className="bg-black border border-white/10 rounded-2xl w-14 h-16 md:w-20 md:h-24 flex items-center justify-center shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]">
+                      <span className="text-3xl md:text-5xl font-black font-mono">{timeObj.d}</span>
                     </div>
                     <span className="text-[9px] md:text-[11px] text-amber-500 uppercase mt-4 font-black tracking-widest">Días</span>
                   </div>
-                  <span className="text-3xl font-black text-white/20 mt-4">:</span>
+                  <span className="text-2xl md:text-3xl font-black text-white/20 mt-4 md:mt-6">:</span>
                   <div className="flex flex-col items-center">
-                    <div className="bg-black border border-white/10 rounded-2xl w-14 h-16 md:w-22 md:h-24 flex items-center justify-center shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]">
-                      <span className="text-3xl md:text-6xl font-black font-mono">{timeObj.h.toString().padStart(2,'0')}</span>
+                    <div className="bg-black border border-white/10 rounded-2xl w-14 h-16 md:w-20 md:h-24 flex items-center justify-center shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]">
+                      <span className="text-3xl md:text-5xl font-black font-mono">{timeObj.h.toString().padStart(2,'0')}</span>
                     </div>
                     <span className="text-[9px] md:text-[11px] text-amber-500 uppercase mt-4 font-black tracking-widest">Hrs</span>
                   </div>
-                  <span className="text-3xl font-black text-white/20 mt-4">:</span>
+                  <span className="text-2xl md:text-3xl font-black text-white/20 mt-4 md:mt-6">:</span>
                   <div className="flex flex-col items-center">
-                    <div className="bg-black border border-white/10 rounded-2xl w-14 h-16 md:w-22 md:h-24 flex items-center justify-center shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]">
-                      <span className="text-3xl md:text-6xl font-black font-mono">{timeObj.m.toString().padStart(2,'0')}</span>
+                    <div className="bg-black border border-white/10 rounded-2xl w-14 h-16 md:w-20 md:h-24 flex items-center justify-center shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]">
+                      <span className="text-3xl md:text-5xl font-black font-mono">{timeObj.m.toString().padStart(2,'0')}</span>
                     </div>
                     <span className="text-[9px] md:text-[11px] text-amber-500 uppercase mt-4 font-black tracking-widest">Min</span>
                   </div>
-                  <span className="text-3xl font-black text-white/20 mt-4">:</span>
+                  <span className="text-2xl md:text-3xl font-black text-white/20 mt-4 md:mt-6">:</span>
                   <div className="flex flex-col items-center">
-                    <div className="bg-black border border-white/10 rounded-2xl w-14 h-16 md:w-22 md:h-24 flex items-center justify-center shadow-[inset_0_0_30px_rgba(245,158,11,0.2)]">
-                      <span className="text-3xl md:text-6xl font-black font-mono text-amber-500">{timeObj.s.toString().padStart(2,'0')}</span>
+                    <div className="bg-black border border-white/10 rounded-2xl w-14 h-16 md:w-20 md:h-24 flex items-center justify-center shadow-[inset_0_0_30px_rgba(245,158,11,0.2)]">
+                      <span className="text-3xl md:text-5xl font-black font-mono text-amber-500">{timeObj.s.toString().padStart(2,'0')}</span>
                     </div>
                     <span className="text-[9px] md:text-[11px] text-gray-500 uppercase mt-4 font-black tracking-widest">Seg</span>
                   </div>
@@ -198,54 +240,78 @@ export default function Home() {
             </div>
           </div>
 
-          {/* BOTÓN PRINCIPAL */}
-          <button onClick={ejecutarCompra} disabled={isBuying || isFinished} className="w-full py-6 md:py-8 bg-white text-black rounded-[30px] md:rounded-[40px] font-black text-sm md:text-lg uppercase tracking-[0.3em] md:tracking-[0.4em] hover:bg-amber-500 hover:text-white transition-all shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_50px_rgba(245,158,11,0.5)] active:scale-95 mb-14">
-            {isFinished ? "BÓVEDA SELLADA" : isBuying ? "CONFIRMANDO PAGO..." : `COMPRAR TICKET (~$${ticketUsd})`}
-          </button>
+          {/* INDICADOR DE LIDERAZGO EN VIVO */}
+          {!isFinished && isWinner && (
+            <div className="mb-8 p-4 bg-green-500/10 border border-green-500/30 rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.2)] animate-pulse">
+              <p className="text-green-400 font-black tracking-widest text-[12px] md:text-[14px] uppercase flex items-center justify-center gap-2">
+                👑 ERES EL LÍDER ACTUAL. SI EL RELOJ LLEGA A CERO, GANAS.
+              </p>
+            </div>
+          )}
+
+          {/* BOTONES DINÁMICOS: COMPRA / SELLO / RECLAMO */}
+          {isFinished ? (
+            isWinner ? (
+              <button onClick={ejecutarReclamo} disabled={isBuying} className="w-full py-6 md:py-8 bg-green-600 text-white rounded-[30px] md:rounded-[40px] font-black text-sm md:text-lg uppercase tracking-[0.4em] hover:bg-green-500 transition-all shadow-[0_0_40px_rgba(34,197,94,0.6)] active:scale-95 mb-12 animate-bounce">
+                {isBuying ? "PROCESANDO RETIRO..." : "🏆 RECLAMAR BÓVEDA TOTAL"}
+              </button>
+            ) : (
+              <button disabled className="w-full py-6 md:py-8 bg-white/10 text-gray-500 rounded-[30px] md:rounded-[40px] font-black text-sm md:text-lg uppercase tracking-[0.4em] mb-12 cursor-not-allowed">
+                BÓVEDA SELLADA (HAY UN GANADOR)
+              </button>
+            )
+          ) : (
+            <button onClick={ejecutarCompra} disabled={isBuying} className="w-full py-6 md:py-8 bg-white text-black rounded-[30px] md:rounded-[40px] font-black text-sm md:text-lg uppercase tracking-[0.4em] hover:bg-amber-500 hover:text-white transition-all shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_50px_rgba(245,158,11,0.5)] active:scale-95 mb-14">
+              {isBuying ? "CONFIRMANDO PAGO..." : `COMPRAR TICKET (~$${ticketUsd})`}
+            </button>
+          )}
           
-          {/* INSTRUCCIONES INTUITIVAS */}
+          {/* INSTRUCCIONES MEJORADAS Y CLARAS */}
           <div className="p-8 md:p-12 bg-white/[0.02] border border-white/10 rounded-[35px] md:rounded-[45px]">
-            <h3 className="text-[13px] md:text-[16px] text-amber-500 uppercase tracking-[0.3em] font-black mb-10 italic">¿Cómo jugar y ganar?</h3>
+            <h3 className="text-[13px] md:text-[16px] text-amber-500 uppercase tracking-[0.3em] font-black mb-10 italic">Instrucciones de Participación</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 text-left md:text-center">
               
-              {/* PASO 1 */}
-              <div className="flex flex-col items-center text-center p-4">
-                 <div className="w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/30 text-amber-500 text-2xl font-black mb-4 shadow-[0_0_20px_rgba(245,158,11,0.15)]">1</div>
-                 <p className="text-[14px] md:text-[16px] font-black text-white uppercase mb-2 tracking-wide">Descarga tu Billetera</p>
-                 <p className="text-[12px] md:text-[13px] text-gray-400 leading-relaxed">Necesitas la app o extensión de <a href="https://metamask.io/download/" target="_blank" className="text-amber-500 underline">MetaMask</a>. Es gratis y funciona en celular y computadora.</p>
+              <div className="flex flex-col items-start md:items-center p-4">
+                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xl md:text-2xl font-black mb-4 shadow-[0_0_20px_rgba(245,158,11,0.15)]">1</div>
+                 <p className="text-[14px] md:text-[16px] font-black text-white uppercase mb-2 tracking-wide">Instala y Fondea</p>
+                 <p className="text-[12px] md:text-[13px] text-gray-400 leading-relaxed">Necesitas la extensión o App de <span className="text-white font-bold">MetaMask</span> con saldo en Ethereum (ETH) para poder cubrir el costo de tu ticket.</p>
               </div>
               
-              {/* PASO 2 */}
-              <div className="flex flex-col items-center text-center p-4">
-                 <div className="w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/30 text-amber-500 text-2xl font-black mb-4 shadow-[0_0_20px_rgba(245,158,11,0.15)]">2</div>
+              <div className="flex flex-col items-start md:items-center p-4">
+                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xl md:text-2xl font-black mb-4 shadow-[0_0_20px_rgba(245,158,11,0.15)]">2</div>
                  <p className="text-[14px] md:text-[16px] font-black text-white uppercase mb-2 tracking-wide">Usa la Red Base</p>
-                 <p className="text-[12px] md:text-[13px] text-gray-400 leading-relaxed">Usamos la red de Coinbase porque es súper barata. Al tocar el botón de comprar, la web te cambia de red automáticamente.</p>
+                 <p className="text-[12px] md:text-[13px] text-gray-400 leading-relaxed">Usamos la red de <span className="text-white font-bold">Coinbase</span> porque es ultra barata. Al tocar el botón de comprar, la web te cambia de red automáticamente.</p>
               </div>
               
-              {/* PASO 3 */}
-              <div className="flex flex-col items-center text-center p-4">
-                 <div className="w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/30 text-amber-500 text-2xl font-black mb-4 shadow-[0_0_20px_rgba(245,158,11,0.15)]">3</div>
-                 <p className="text-[14px] md:text-[16px] font-black text-white uppercase mb-2 tracking-wide">Compra y Sé el Último</p>
-                 <p className="text-[12px] md:text-[13px] text-gray-400 leading-relaxed">Tu ticket suma <span className="text-amber-500 font-bold">60 minutos extras</span> al reloj. Si nadie más compra antes de que el tiempo acabe, <span className="text-white font-bold">ganas todo el pozo</span>.</p>
+              <div className="flex flex-col items-start md:items-center p-4">
+                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xl md:text-2xl font-black mb-4 shadow-[0_0_20px_rgba(245,158,11,0.15)]">3</div>
+                 <p className="text-[14px] md:text-[16px] font-black text-white uppercase mb-2 tracking-wide">Aporta y Lidera</p>
+                 <p className="text-[12px] md:text-[13px] text-gray-400 leading-relaxed">Tu ticket de 0.0008 ETH suma <span className="text-amber-500 font-bold">60 minutos</span> al reloj. Mientras seas el último en aportar, serás el líder visible de la bóveda.</p>
               </div>
 
             </div>
+
+            {/* SECCIÓN: QUÉ PASA SI GANO */}
+            <div className="mt-8 pt-8 border-t border-white/5 text-left bg-black/20 p-6 rounded-3xl">
+               <h4 className="text-white font-black uppercase text-[12px] md:text-[14px] mb-2 tracking-widest">¿Cómo retiro el dinero si gano?</h4>
+               <p className="text-gray-400 text-[12px] leading-relaxed">Si el reloj llega a cero (00:00:00) y tú fuiste el último en aportar, el botón principal se transformará en una opción verde para <span className="text-white font-bold">"RECLAMAR BÓVEDA TOTAL"</span>. Al hacer clic, el Contrato Inteligente enviará todo el pozo acumulado directamente a tu billetera MetaMask conectada. Sin intermediarios, sin demoras.</p>
+            </div>
           </div>
 
-          {/* VERIFICACIÓN PÚBLICA */}
-          <div className="mt-12 text-center">
-            <a href={`https://basescan.org/address/${contractAddress}`} target="_blank" className="inline-flex items-center gap-3 text-[11px] md:text-[13px] font-black text-gray-400 hover:text-amber-500 transition-colors uppercase tracking-[0.2em] bg-white/5 py-4 px-8 rounded-full border border-white/10 hover:border-amber-500/30">
-              <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></span> 
-              Ver transacciones reales en vivo (Basescan)
+          <div className="mt-14 pt-10 border-t border-white/5 flex flex-col md:flex-row justify-center gap-6 md:gap-16 items-center">
+            <a href={`https://basescan.org/address/${contractAddress}`} target="_blank" className="text-[10px] md:text-[11px] font-black text-gray-500 hover:text-amber-500 transition-colors uppercase tracking-[0.2em] flex items-center gap-2">
+              <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></span> Transacciones públicas en Basescan
             </a>
+            <p className="text-[10px] md:text-[11px] font-black text-gray-600 uppercase tracking-[0.2em] italic">
+              90% Al Pozo ● 10% Al Protocolo
+            </p>
           </div>
-
         </div>
       </section>
 
-      <footer className="mt-20 md:mt-32 border-t border-white/5 py-12 text-center opacity-40">
-        <p className="text-[10px] md:text-[11px] tracking-[0.5em] md:tracking-[1em] font-black uppercase px-4 leading-relaxed">VAULTUM PROTOCOL ● RED BASE ● MOONSHOT 2026</p>
+      <footer className="mt-24 md:mt-32 pb-16 text-center opacity-30">
+        <p className="text-[10px] tracking-[1em] font-black uppercase px-4 leading-relaxed">VAULTUM PROTOCOL ● BASE NETWORK ● MOONSHOT 2026</p>
       </footer>
 
     </main>
