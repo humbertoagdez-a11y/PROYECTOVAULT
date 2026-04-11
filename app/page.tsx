@@ -19,10 +19,10 @@ export default function Home() {
   const [timeObj, setTimeObj] = useState<{d: number, h: number, m: number, s: number} | null>(null);
   const [isBuying, setIsBuying] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
-  const [isWinner, setIsWinner] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const capitalSemilla = 0.4532;
+  // Datos de transparencia solicitados
+  const capitalSemilla = 0.4532; 
   const totalEth = capitalSemilla + pozoReal;
   const pozoUsd = (totalEth * ethPrice).toLocaleString("en-US", { style: "currency", currency: "USD" });
   const ticketUsd = (0.0008 * ethPrice).toFixed(2);
@@ -32,10 +32,9 @@ export default function Home() {
       const provider = new ethers.JsonRpcProvider(BASE_RPC);
       const contract = new ethers.Contract(contractAddress, contractABI, provider);
       
-      const [pozoWei, tiempoFin, ultimoB] = await Promise.all([
+      const [pozoWei, tiempoFin] = await Promise.all([
         contract.pozoTotal(),
-        contract.tiempoFinalizacion(),
-        contract.ultimoBeneficiario()
+        contract.tiempoFinalizacion()
       ]);
 
       setPozoReal(parseFloat(ethers.formatEther(pozoWei)));
@@ -48,10 +47,6 @@ export default function Home() {
           setIsFinished(true);
           setTimeObj({ d: 0, h: 0, m: 0, s: 0 });
           setLoading(false);
-          // Validar si el usuario conectado es el ganador
-          if (currentWallet?.toLowerCase() === ultimoB.toLowerCase()) {
-            setIsWinner(true);
-          }
           clearInterval(interval);
         } else {
           setTimeObj({
@@ -68,231 +63,167 @@ export default function Home() {
     } catch (e) { setLoading(false); }
   };
 
-  const conectarBilletera = async () => {
-    const eth = (window as any).ethereum;
-    if (typeof eth !== "undefined") {
-      try {
-        const provider = new ethers.BrowserProvider(eth);
-        const accounts = await provider.send("eth_requestAccounts", []);
-        const account = accounts[0];
-        setWallet(account);
-        await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x2105' }] });
-        // Recargar datos con la nueva billetera conectada
-        cargarDatos(account);
-      } catch (e) { console.error(e); }
-    } else {
-      window.open("https://metamask.io/download/", "_blank");
-    }
-  };
-
   const ejecutarCompra = async () => {
-    if (!wallet) return conectarBilletera();
+    const eth = (window as any).ethereum;
+    if (!wallet) {
+      if (typeof eth !== "undefined") {
+        const accounts = await eth.request({ method: 'eth_requestAccounts' });
+        setWallet(accounts[0]);
+        return;
+      }
+    }
+    
     setIsBuying(true);
     try {
-      const eth = (window as any).ethereum;
       const provider = new ethers.BrowserProvider(eth);
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(contractAddress, contractABI, signer);
-      
       const tx = await contract.comprarAcceso({ value: ethers.parseEther("0.0008") });
-      await tx.wait(); // Esperamos que se confirme en la blockchain
-      
-      // ACTUALIZAMOS SIN RECARGAR LA PÁGINA
-      await cargarDatos(wallet);
+      await tx.wait();
+      cargarDatos(wallet);
       setIsBuying(false);
-    } catch (e: any) { 
+    } catch (e) { 
       setIsBuying(false); 
-      alert("Operación cancelada o saldo insuficiente.");
+      alert("Transacción cancelada o saldo insuficiente.");
     }
   };
 
   useEffect(() => {
     const fetchPrice = async () => {
       try {
-        const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd");
+        const res = await fetch("https://api.coingecko.com/price/ethereum?vs_currencies=usd");
         const data = await res.json();
-        setEthPrice(data.ethereum.usd);
-      } catch (e) { console.error(e); }
+        if (data.ethereum) setEthPrice(data.ethereum.usd);
+      } catch (e) {}
     };
     fetchPrice();
-    cargarDatos(wallet);
+    cargarDatos();
   }, []);
 
   return (
     <main className="min-h-screen bg-[#000000] text-white font-sans overflow-x-hidden pb-20 selection:bg-amber-500/30">
       
-      {/* NAVBAR */}
-      <nav className="w-full border-b border-white/5 bg-[#050505] sticky top-0 z-[100] px-6 md:px-8 h-20 flex justify-between items-center shadow-2xl">
+      <nav className="w-full border-b border-white/5 bg-[#050505]/80 backdrop-blur-xl sticky top-0 z-[100] px-6 md:px-12 h-20 flex justify-between items-center shadow-2xl">
         <div className="flex items-center gap-3">
           <div className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse shadow-[0_0_15px_#f59e0b]"></div>
-          <span className="text-xl font-black tracking-tighter uppercase italic">VAULTUM<span className="text-amber-500">.</span></span>
+          <span className="text-xl md:text-2xl font-black tracking-tighter uppercase italic">VAULTUM<span className="text-amber-500">.</span></span>
         </div>
-        <button onClick={conectarBilletera} className="text-[10px] md:text-xs font-black border border-white/20 px-5 md:px-6 py-2 md:py-2.5 rounded-full hover:bg-white hover:text-black transition-all uppercase tracking-widest bg-black">
+        <button className="text-[10px] md:text-xs font-black border border-white/20 px-5 md:px-8 py-2 md:py-3 rounded-full hover:bg-white hover:text-black transition-all uppercase tracking-widest bg-black">
           {wallet ? `CUENTA: ${wallet.substring(0,6)}...` : "CONECTAR BILLETERA"}
         </button>
       </nav>
 
-      <section className="max-w-6xl mx-auto px-4 md:px-6 text-center mt-16 md:mt-24">
-        
-        {/* TÍTULO IMPACTANTE */}
-        <h1 className="text-5xl md:text-[90px] font-bold tracking-tighter mb-4 md:mb-6 leading-none uppercase">
+      <section className="max-w-6xl mx-auto px-4 md:px-6 text-center mt-12 md:mt-24">
+        <h1 className="text-5xl md:text-[100px] font-bold tracking-tighter mb-4 md:mb-6 leading-none uppercase">
           EL ÚLTIMO <br/> 
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-gray-300 via-gray-500 to-gray-700 italic font-light text-4xl md:text-7xl">
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-gray-200 via-gray-400 to-gray-600 italic font-light text-3xl md:text-7xl">
             se lleva el pozo entero.
           </span>
         </h1>
-        <p className="text-amber-500/80 text-xs md:text-sm font-bold uppercase tracking-[0.3em] md:tracking-[0.4em] mb-12 md:mb-16">
-          Protocolo de Liquidez Auditable ● Red Base
-        </p>
         
-        {/* PANEL CENTRAL: POZO Y RELOJ */}
-        <div className="bg-[#0A0A0A] border border-white/10 rounded-[40px] md:rounded-[60px] p-6 md:p-16 shadow-[0_0_50px_rgba(0,0,0,1)] relative overflow-hidden max-w-5xl mx-auto">
+        <div className="bg-[#0A0A0A] border border-white/10 rounded-[40px] md:rounded-[60px] p-6 md:p-16 shadow-[0_0_80px_rgba(0,0,0,0.8)] relative overflow-hidden max-w-5xl mx-auto">
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-amber-500 to-transparent"></div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-12 md:mb-16">
-            
-            {/* PANEL POZO */}
-            <div className="bg-gradient-to-b from-white/[0.04] to-transparent border border-white/5 rounded-[30px] md:rounded-[45px] p-8 md:p-12 text-center">
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-4 md:mb-6">Capital Acumulado</p>
-              <div className="flex items-baseline justify-center gap-2 md:gap-3 mb-1 md:mb-2">
-                <span className="text-5xl md:text-8xl font-medium tracking-tighter">{totalEth.toFixed(4)}</span>
-                <span className="text-amber-500 text-xl md:text-2xl font-black italic">ETH</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-12">
+            <div className="bg-gradient-to-b from-white/[0.03] to-transparent border border-white/5 rounded-[30px] p-10 md:p-14">
+              <p className="text-[10px] text-gray-500 uppercase tracking-[0.3em] font-black mb-6">Capital de Bóveda</p>
+              <div className="flex items-baseline justify-center gap-3 mb-2">
+                <span className="text-6xl md:text-8xl font-medium tracking-tighter">{totalEth.toFixed(4)}</span>
+                <span className="text-amber-500 text-2xl font-black italic tracking-tighter">ETH</span>
               </div>
-              <p className="text-xl md:text-3xl text-gray-400 font-light italic">≈ {pozoUsd}</p>
+              <p className="text-2xl md:text-3xl text-gray-400 font-light italic">≈ {pozoUsd}</p>
+              
+              {/* NOTA DE CAPITAL SEMILLA SOLICITADA */}
+              <div className="mt-8 pt-6 border-t border-white/5">
+                <p className="text-[10px] text-gray-600 uppercase leading-relaxed font-bold tracking-widest italic">
+                  * Incluye reserva estratégica de 0.4532 ETH aportada por el protocolo.
+                </p>
+              </div>
             </div>
 
-            {/* PANEL RELOJ PROFESIONAL */}
-            <div className="bg-gradient-to-b from-white/[0.04] to-transparent border border-white/5 rounded-[30px] md:rounded-[45px] p-8 md:p-12 text-center flex flex-col justify-center">
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-6">Tiempo Restante</p>
+            <div className="bg-gradient-to-b from-white/[0.03] to-transparent border border-white/5 rounded-[30px] p-10 md:p-14 flex flex-col justify-center">
+              <p className="text-[10px] text-gray-500 uppercase tracking-[0.3em] font-black mb-10">Tiempo Restante</p>
               
               {loading || !timeObj ? (
-                <div className="text-xl md:text-3xl font-mono text-gray-600 animate-pulse uppercase tracking-widest">Sincronizando...</div>
-              ) : isFinished ? (
-                <div className="text-3xl md:text-5xl font-black text-red-500 uppercase tracking-tighter">SELLADA</div>
+                <div className="text-2xl font-mono text-gray-700 animate-pulse tracking-widest">SINCRONIZANDO...</div>
               ) : (
-                <div className="flex justify-center gap-2 md:gap-4">
-                  {/* DÍAS */}
+                <div className="flex justify-center gap-3 md:gap-5">
                   <div className="flex flex-col items-center">
-                    <div className="bg-black border border-white/10 rounded-xl md:rounded-2xl w-14 h-16 md:w-20 md:h-24 flex items-center justify-center shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]">
-                      <span className="text-3xl md:text-5xl font-black font-mono text-white">{timeObj.d.toString().padStart(2, '0')}</span>
+                    <div className="bg-black border border-white/10 rounded-2xl w-14 h-16 md:w-20 md:h-24 flex items-center justify-center shadow-inner">
+                      <span className="text-3xl md:text-5xl font-black font-mono">{timeObj.d}</span>
                     </div>
-                    <span className="text-[8px] md:text-[10px] text-amber-500 uppercase mt-2 md:mt-3 tracking-widest font-bold">Días</span>
+                    <span className="text-[8px] md:text-[10px] text-amber-500 uppercase mt-3 font-black tracking-widest">Días</span>
                   </div>
-                  <span className="text-2xl md:text-4xl font-black text-white/20 self-start mt-3 md:mt-5">:</span>
-                  
-                  {/* HORAS */}
+                  <span className="text-2xl font-black text-white/10 mt-5">:</span>
                   <div className="flex flex-col items-center">
-                    <div className="bg-black border border-white/10 rounded-xl md:rounded-2xl w-14 h-16 md:w-20 md:h-24 flex items-center justify-center shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]">
-                      <span className="text-3xl md:text-5xl font-black font-mono text-white">{timeObj.h.toString().padStart(2, '0')}</span>
+                    <div className="bg-black border border-white/10 rounded-2xl w-14 h-16 md:w-20 md:h-24 flex items-center justify-center shadow-inner">
+                      <span className="text-3xl md:text-5xl font-black font-mono">{timeObj.h.toString().padStart(2,'0')}</span>
                     </div>
-                    <span className="text-[8px] md:text-[10px] text-amber-500 uppercase mt-2 md:mt-3 tracking-widest font-bold">Hrs</span>
+                    <span className="text-[8px] md:text-[10px] text-amber-500 uppercase mt-3 font-black tracking-widest">Hrs</span>
                   </div>
-                  <span className="text-2xl md:text-4xl font-black text-white/20 self-start mt-3 md:mt-5">:</span>
-                  
-                  {/* MINUTOS */}
+                  <span className="text-2xl font-black text-white/10 mt-5">:</span>
                   <div className="flex flex-col items-center">
-                    <div className="bg-black border border-white/10 rounded-xl md:rounded-2xl w-14 h-16 md:w-20 md:h-24 flex items-center justify-center shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]">
-                      <span className="text-3xl md:text-5xl font-black font-mono text-white">{timeObj.m.toString().padStart(2, '0')}</span>
+                    <div className="bg-black border border-white/10 rounded-2xl w-14 h-16 md:w-20 md:h-24 flex items-center justify-center shadow-inner">
+                      <span className="text-3xl md:text-5xl font-black font-mono">{timeObj.m.toString().padStart(2,'0')}</span>
                     </div>
-                    <span className="text-[8px] md:text-[10px] text-amber-500 uppercase mt-2 md:mt-3 tracking-widest font-bold">Min</span>
+                    <span className="text-[8px] md:text-[10px] text-amber-500 uppercase mt-3 font-black tracking-widest">Min</span>
                   </div>
-                  <span className="text-2xl md:text-4xl font-black text-white/20 self-start mt-3 md:mt-5">:</span>
-                  
-                  {/* SEGUNDOS */}
+                  <span className="text-2xl font-black text-white/10 mt-5">:</span>
                   <div className="flex flex-col items-center">
-                    <div className="bg-black border border-white/10 rounded-xl md:rounded-2xl w-14 h-16 md:w-20 md:h-24 flex items-center justify-center shadow-[inset_0_0_20px_rgba(245,158,11,0.15)]">
-                      <span className="text-3xl md:text-5xl font-black font-mono text-amber-400">{timeObj.s.toString().padStart(2, '0')}</span>
+                    <div className="bg-black border border-white/10 rounded-2xl w-14 h-16 md:w-20 md:h-24 flex items-center justify-center shadow-inner">
+                      <span className="text-3xl md:text-5xl font-black font-mono text-amber-500">{timeObj.s.toString().padStart(2,'0')}</span>
                     </div>
-                    <span className="text-[8px] md:text-[10px] text-gray-500 uppercase mt-2 md:mt-3 tracking-widest font-bold">Seg</span>
+                    <span className="text-[8px] md:text-[10px] text-gray-500 uppercase mt-3 font-black tracking-widest">Seg</span>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* BOTÓN DE ACCIÓN / GANADOR */}
-          {isWinner ? (
-            <button className="w-full py-6 md:py-8 bg-green-600 text-white rounded-[25px] md:rounded-[35px] font-black text-sm md:text-[16px] uppercase tracking-[0.3em] md:tracking-[0.5em] animate-pulse shadow-[0_0_40px_rgba(22,163,74,0.6)] mb-10 md:mb-14">
-              RECLAMAR BÓVEDA AHORA
-            </button>
-          ) : (
-            <button onClick={ejecutarCompra} disabled={isBuying || isFinished} className="w-full py-6 md:py-8 bg-white text-black rounded-[25px] md:rounded-[35px] font-black text-sm md:text-[16px] uppercase tracking-[0.3em] md:tracking-[0.5em] hover:bg-amber-500 hover:text-white transition-all shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_40px_rgba(245,158,11,0.6)] active:scale-95 mb-10 md:mb-14">
-              {isFinished ? "BÓVEDA FINALIZADA" : isBuying ? "CONFIRMANDO PAGO..." : `INGRESAR AL POZO (~$${ticketUsd})`}
-            </button>
-          )}
-
-          {/* LINK PÚBLICO DE BASESCAN (NUEVA CERTEZA) */}
-          <div className="mb-14 p-6 bg-white/[0.02] rounded-3xl border border-white/5 inline-block">
-            <a href={`https://basescan.org/address/${contractAddress}`} target="_blank" className="text-[10px] md:text-xs font-black text-gray-400 hover:text-amber-500 transition-colors uppercase tracking-widest flex items-center justify-center gap-3">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> 
-              Ver transacciones en vivo (Basescan)
-            </a>
-          </div>
+          <button onClick={ejecutarCompra} disabled={isBuying || isFinished} className="w-full py-7 md:py-9 bg-white text-black rounded-[30px] md:rounded-[40px] font-black text-sm md:text-lg uppercase tracking-[0.4em] hover:bg-amber-500 hover:text-white transition-all shadow-2xl active:scale-95 mb-12">
+            {isFinished ? "BÓVEDA SELLADA" : isBuying ? "CONFIRMANDO..." : `INGRESAR AL POZO (~$${ticketUsd})`}
+          </button>
           
-          {/* INSTRUCCIONES LLAMATIVAS Y RESPONSIVAS */}
-          <div className="p-6 md:p-10 bg-gradient-to-b from-white/[0.03] to-transparent border border-white/10 rounded-[30px] md:rounded-[40px]">
-            <h3 className="text-xs md:text-[14px] text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-amber-600 uppercase tracking-[0.3em] font-black mb-8 md:mb-12 italic text-center">
-              ¿Cómo Participar?
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10">
-              
-              <a href="https://metamask.io/download/" target="_blank" className="flex flex-row md:flex-col items-center gap-4 md:gap-6 text-left md:text-center p-4 rounded-2xl hover:bg-white/5 transition-all border border-transparent hover:border-white/10">
-                 <div className="min-w-[50px] h-[50px] md:w-16 md:h-16 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xl md:text-2xl font-black shadow-[0_0_15px_rgba(245,158,11,0.2)]">1</div>
+          <div className="p-8 md:p-12 bg-gradient-to-b from-white/[0.02] to-transparent border border-white/10 rounded-[35px] md:rounded-[45px]">
+            <h3 className="text-[12px] md:text-[14px] text-amber-500 uppercase tracking-[0.4em] font-black mb-10 italic">Instrucciones de Participación</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
+              <div className="flex flex-row md:flex-col items-center gap-5 text-left md:text-center">
+                 <div className="min-w-[50px] h-[50px] md:w-16 md:h-16 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xl font-black shadow-[0_0_20px_rgba(245,158,11,0.1)]">1</div>
                  <div>
-                    <p className="text-sm md:text-[13px] font-black text-white uppercase tracking-wider mb-1">Obtén MetaMask</p>
-                    <p className="text-[10px] md:text-[11px] font-normal text-gray-400">Instala la extensión en tu PC o la App en tu celular.</p>
-                 </div>
-              </a>
-
-              <div className="flex flex-row md:flex-col items-center gap-4 md:gap-6 text-left md:text-center p-4 rounded-2xl">
-                 <div className="min-w-[50px] h-[50px] md:w-16 md:h-16 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xl md:text-2xl font-black shadow-[0_0_15px_rgba(245,158,11,0.2)]">2</div>
-                 <div>
-                    <p className="text-sm md:text-[13px] font-black text-white uppercase tracking-wider mb-1">Red Base Mainnet</p>
-                    <p className="text-[10px] md:text-[11px] font-normal text-gray-400">Al vincular tu billetera, la web te cambiará de red automáticamente.</p>
+                    <p className="text-[12px] font-black text-white uppercase mb-1">Cargar MetaMask</p>
+                    <p className="text-[10px] text-gray-500 uppercase leading-tight font-bold">Compatible con PC y dispositivos móviles.</p>
                  </div>
               </div>
-
-              <div className="flex flex-row md:flex-col items-center gap-4 md:gap-6 text-left md:text-center p-4 rounded-2xl">
-                 <div className="min-w-[50px] h-[50px] md:w-16 md:h-16 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xl md:text-2xl font-black shadow-[0_0_15px_rgba(245,158,11,0.2)]">3</div>
+              <div className="flex flex-row md:flex-col items-center gap-5 text-left md:text-center">
+                 <div className="min-w-[50px] h-[50px] md:w-16 md:h-16 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xl font-black shadow-[0_0_20px_rgba(245,158,11,0.1)]">2</div>
                  <div>
-                    <p className="text-sm md:text-[13px] font-black text-white uppercase tracking-wider mb-1">Aporta 0.0008 ETH</p>
-                    <p className="text-[10px] md:text-[11px] font-normal text-gray-400">Tu ingreso suma <span className="text-amber-500 font-bold">60 minutos</span> extras al reloj y te pone a la cabeza.</p>
+                    <p className="text-[12px] font-black text-white uppercase mb-1">Elegir Red Base</p>
+                    <p className="text-[10px] text-gray-500 uppercase leading-tight font-bold">La red de segunda capa de Coinbase ultra eficiente.</p>
                  </div>
               </div>
-
+              <div className="flex flex-row md:flex-col items-center gap-5 text-left md:text-center">
+                 <div className="min-w-[50px] h-[50px] md:w-16 md:h-16 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xl font-black shadow-[0_0_20px_rgba(245,158,11,0.1)]">3</div>
+                 <div>
+                    <p className="text-[12px] font-black text-white uppercase mb-1">Sumar 60 Minutos</p>
+                    <p className="text-[10px] text-gray-500 uppercase leading-tight font-bold">Cada aporte de 0.0008 ETH acumula tiempo extra al reloj.</p>
+                 </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* SECCIÓN DE CONFIANZA */}
-        <div className="mt-20 md:mt-32 text-left">
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tighter uppercase mb-10 text-center md:text-left">
-            Confianza <br className="md:hidden"/> Descentralizada <br/>
-            <span className="text-amber-500 italic font-light text-xl md:text-3xl">Transparencia Inmutable en la Blockchain.</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-            <div className="p-8 md:p-10 bg-gradient-to-br from-[#121212] to-black rounded-[30px] border border-white/5 shadow-xl hover:border-amber-500/20 transition-all">
-              <h3 className="text-white font-black text-[12px] md:text-[14px] uppercase mb-4 tracking-widest flex items-center gap-3">
-                <span className="w-2 h-2 bg-amber-500 rounded-full"></span> Sin Administradores
-              </h3>
-              <p className="text-[12px] md:text-[14px] text-gray-400 leading-relaxed uppercase tracking-tighter italic">
-                Vaultum es un protocolo autónomo. El 90% de cada ticket ingresa directamente al pozo. El pago al último participante se ejecuta automáticamente mediante un <span className="text-white font-bold">Contrato Inteligente verificado</span>.
-              </p>
-            </div>
-            <div className="p-8 md:p-10 bg-gradient-to-br from-[#121212] to-black rounded-[30px] border border-white/5 shadow-xl hover:border-amber-500/20 transition-all">
-              <h3 className="text-white font-black text-[12px] md:text-[14px] uppercase mb-4 tracking-widest flex items-center gap-3">
-                <span className="w-2 h-2 bg-amber-500 rounded-full"></span> Tiempo Acumulativo
-              </h3>
-              <p className="text-[12px] md:text-[14px] text-gray-400 leading-relaxed uppercase tracking-tighter italic">
-                La tensión nunca termina. Cada nuevo ingreso <span className="text-amber-500 font-bold">suma 60 minutos exactos</span> al tiempo restante. Esto extiende la competencia y hace crecer el premio final de forma exponencial.
-              </p>
-            </div>
+          <div className="mt-14 pt-10 border-t border-white/5 flex flex-col md:flex-row justify-center gap-8 md:gap-16 items-center">
+            <a href={`https://basescan.org/address/${contractAddress}`} target="_blank" className="text-[10px] font-black text-gray-500 hover:text-amber-500 transition-colors uppercase tracking-[0.2em] flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Basescan: Transacciones en Vivo
+            </a>
+            <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.2em] italic">
+              90% Acumulación ● 10% Protocolo
+            </p>
           </div>
         </div>
       </section>
 
-      <footer className="mt-20 md:mt-32 border-t border-white/5 py-12 text-center opacity-40">
-        <p className="text-[9px] md:text-[10px] tracking-[0.5em] md:tracking-[1em] font-black uppercase px-4">VAULTUM PROTOCOL ● BASE NETWORK ● 2026</p>
+      <footer className="mt-24 md:mt-32 pb-16 text-center opacity-30">
+        <p className="text-[10px] tracking-[1em] font-black uppercase px-4 leading-relaxed">VAULTUM PROTOCOL ● BASE NETWORK ● MOONSHOT 2026</p>
       </footer>
 
     </main>
