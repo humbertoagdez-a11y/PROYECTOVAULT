@@ -1,65 +1,223 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import { ethers } from "ethers";
 
 export default function Home() {
+  const [wallet, setWallet] = useState<string | null>(null);
+  const [pozoReal, setPozoReal] = useState<number>(0);
+  const [ethPrice, setEthPrice] = useState<number>(3500); 
+  const [timeLeft, setTimeLeft] = useState<string>("");
+  const [isBuying, setIsBuying] = useState(false);
+  const [isFinished, setIsFinished] = useState(false);
+  const [isWinner, setIsWinner] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const contractAddress = "0x8402141f87553000579a4b27DF7EFe6880F3E14a"; 
+  const contractABI = [
+    "function comprarAcceso() external payable",
+    "function liquidarBoveda() external",
+    "function pozoTotal() view returns (uint256)",
+    "function tiempoFinalizacion() view returns (uint256)",
+    "function ultimoBeneficiario() view returns (address)"
+  ];
+
+  const capitalSemilla = 0.4532; 
+  const totalEth = capitalSemilla + pozoReal;
+  const pozoUsd = (totalEth * ethPrice).toLocaleString("en-US", { style: "currency", currency: "USD" });
+  const ticketUsd = (0.0008 * ethPrice).toFixed(2);
+
+  const fetchPrice = async () => {
+    try {
+      const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd");
+      const data = await res.json();
+      setEthPrice(data.ethereum.usd);
+    } catch (e) { console.error(e); }
+  };
+
+  const conectarBilletera = async () => {
+    if (typeof window.ethereum !== "undefined") {
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const accounts = await provider.send("eth_requestAccounts", []);
+        setWallet(accounts[0]);
+        
+        try {
+          await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x2105' }] });
+        } catch (err: any) {
+          if (err.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{ chainId: '0x2105', chainName: 'Base Mainnet', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: ['https://mainnet.base.org'], blockExplorerUrls: ['https://basescan.org'] }]
+            });
+          }
+        }
+        cargarDatos(provider);
+      } catch (e) { console.error(e); }
+    } else {
+      window.open("https://metamask.io/download/", "_blank");
+    }
+  };
+
+  const cargarDatos = async (provider: any) => {
+    try {
+      const contract = new ethers.Contract(contractAddress, contractABI, provider);
+      const pozoWei = await contract.pozoTotal();
+      const tiempoFin = await contract.tiempoFinalizacion();
+      const ultimoB = await contract.ultimoBeneficiario();
+      setPozoReal(parseFloat(ethers.formatEther(pozoWei)));
+      
+      const interval = setInterval(() => {
+        const now = Math.floor(Date.now() / 1000);
+        const diff = Number(tiempoFin) - now;
+        if (diff <= 0) {
+          setTimeLeft("BÓVEDA SELLADA");
+          setIsFinished(true);
+          setLoading(false);
+          if (wallet?.toLowerCase() === ultimoB.toLowerCase()) setIsWinner(true);
+          clearInterval(interval);
+        } else {
+          const d = Math.floor(diff / (3600 * 24));
+          const h = Math.floor((diff % (3600 * 24)) / 3600);
+          const m = Math.floor((diff % 3600) / 60);
+          const s = Math.floor(diff % 60);
+          setTimeLeft(`${d}d ${h}h ${m}m ${s}s`);
+          setLoading(false);
+        }
+      }, 1000);
+    } catch (e) { console.error(e); }
+  };
+
+  const ejecutarCompra = async () => {
+    if (!wallet) return conectarBilletera();
+    setIsBuying(true);
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(contractAddress, contractABI, signer);
+      const tx = await contract.comprarAcceso({ value: ethers.parseEther("0.0008") });
+      await tx.wait();
+      window.location.reload();
+    } catch (e) { setIsBuying(false); }
+  };
+
+  useEffect(() => {
+    fetchPrice();
+    if (window.ethereum) {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      provider.listAccounts().then(acc => { if (acc.length > 0) { setWallet(acc[0].address); cargarDatos(provider); } });
+    }
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen bg-[#000000] text-white font-sans selection:bg-amber-500/30 overflow-x-hidden pb-10">
+      
+      {/* NAVBAR */}
+      <nav className="w-full border-b border-white/5 bg-black/50 backdrop-blur-md sticky top-0 z-50 px-8 h-20 flex justify-between items-center text-center">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_10px_#f59e0b]"></div>
+          <span className="text-xl font-black tracking-tighter uppercase italic">VAULTUM<span className="text-amber-500">.</span></span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <button onClick={conectarBilletera} className="text-[10px] font-black border border-white/20 px-6 py-2 rounded-full hover:bg-white hover:text-black transition-all uppercase tracking-widest">
+          {wallet ? `MI CUENTA: ${wallet.substring(0,6)}...` : "CONECTAR MI BILLETERA"}
+        </button>
+      </nav>
+
+      <section className="max-w-6xl mx-auto px-6 text-center mt-20">
+        <h1 className="text-5xl md:text-[90px] font-bold tracking-tighter mb-4 leading-none uppercase">
+          EL ÚLTIMO <br/> 
+          <span className="text-gray-500 italic font-light text-3xl md:text-7xl">se lleva el pozo entero.</span>
+        </h1>
+        <p className="text-gray-400 text-xs md:text-sm font-bold uppercase tracking-[0.4em] mb-16 opacity-60">
+          Protocolo de Liquidez Auditable en Red Base
+        </p>
+        
+        {/* PANEL CENTRAL */}
+        <div className="bg-[#0A0A0A] border border-white/5 rounded-[50px] p-8 md:p-16 shadow-[0_50px_100px_-20px_rgba(0,0,0,1)] relative overflow-hidden max-w-4xl mx-auto">
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent"></div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-12 items-center">
+            {/* Lado Pozo */}
+            <div className="bg-white/[0.02] border border-white/5 rounded-[40px] p-10 flex flex-col justify-center">
+              <p className="text-[10px] text-gray-600 uppercase tracking-widest font-black mb-4">Pozo Acumulado</p>
+              <div className="flex items-baseline justify-center gap-2 mb-1">
+                <span className="text-6xl md:text-7xl font-medium tracking-tighter">{totalEth.toFixed(4)}</span>
+                <span className="text-amber-500 text-xl font-black italic">ETH</span>
+              </div>
+              <p className="text-2xl text-gray-500 font-light italic">≈ {pozoUsd}</p>
+            </div>
+
+            {/* Lado Reloj */}
+            <div className="bg-white/[0.02] border border-white/5 rounded-[40px] p-10 flex flex-col justify-center">
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-4">Tiempo Restante</p>
+              <div className="text-3xl md:text-4xl font-mono font-bold text-white tracking-tight uppercase">
+                {loading ? (
+                  <div className="flex justify-center items-center gap-1 opacity-40 italic">
+                    SINCRONIZANDO
+                    <span className="dot">.</span><span className="dot">.</span><span className="dot">.</span>
+                  </div>
+                ) : timeLeft}
+              </div>
+            </div>
+          </div>
+
+          <button onClick={ejecutarCompra} disabled={isBuying || isFinished} className="w-full py-7 bg-white text-black rounded-[30px] font-black text-[13px] uppercase tracking-[0.5em] hover:bg-amber-500 hover:text-white transition-all shadow-xl active:scale-95 mb-10">
+            {isFinished ? "BÓVEDA SELLADA" : isBuying ? "CONFIRMANDO..." : `INGRESAR AL POZO (~$${ticketUsd})`}
+          </button>
+          
+          {/* INSTRUCCIONES RÁPIDAS (CORREGIDAS) */}
+          <div className="p-8 bg-white/[0.01] border border-white/5 rounded-3xl">
+            <p className="text-[9px] text-gray-600 uppercase tracking-widest font-black mb-6">¿Cómo participar?</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-[10px] font-black text-gray-400 uppercase tracking-tighter">
+              <a href="https://metamask.io/download/" target="_blank" className="hover:text-amber-500 flex flex-col items-center gap-3 transition-colors">
+                 <span className="bg-white/5 w-8 h-8 rounded-full flex items-center justify-center text-amber-500 text-xs border border-white/10">1</span>
+                 Instalar MetaMask
+              </a>
+              <div className="flex flex-col items-center gap-3">
+                 <span className="bg-white/5 w-8 h-8 rounded-full flex items-center justify-center text-amber-500 text-xs border border-white/10">2</span>
+                 Elegir Red Base
+              </div>
+              <div className="flex flex-col items-center gap-3">
+                 <span className="bg-white/5 w-8 h-8 rounded-full flex items-center justify-center text-amber-500 text-xs border border-white/10">3</span>
+                 Mínimo 0.0008 ETH (~${ticketUsd})
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+      </section>
+
+      {/* INFO EXTRA */}
+      <section className="max-w-6xl mx-auto px-8 mt-32 grid md:grid-cols-3 gap-16 text-center md:text-left opacity-60">
+        <div>
+          <h3 className="text-white font-black text-[10px] uppercase mb-4 tracking-widest italic">El Sistema</h3>
+          <p className="text-[11px] leading-relaxed uppercase tracking-tighter">Cada nuevo aporte reinicia el reloj a 60 minutos. El último aportante liquida el pozo total.</p>
+        </div>
+        <div>
+          <h3 className="text-white font-black text-[10px] uppercase mb-4 tracking-widest italic">Transparencia</h3>
+          <p className="text-[11px] leading-relaxed uppercase tracking-tighter">El 90% del valor de cada ticket se suma al pozo. El 10% se destina al mantenimiento del protocolo.</p>
+        </div>
+        <div>
+          <h3 className="text-white font-black text-[10px] uppercase mb-4 tracking-widest italic">Inmutable</h3>
+          <p className="text-[11px] leading-relaxed uppercase tracking-tighter">Software autónomo ejecutándose en Base Network. Sin administradores ni intervención humana.</p>
+        </div>
+      </section>
+
+      <style jsx>{`
+        .dot {
+          animation: blink 1.2s infinite;
+          opacity: 0;
+          display: inline-block;
+          margin-left: 2px;
+        }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink {
+          0% { opacity: 0; transform: translateY(0px); }
+          50% { opacity: 1; transform: translateY(-2px); }
+          100% { opacity: 0; transform: translateY(0px); }
+        }
+      `}</style>
+
+    </main>
   );
 }
