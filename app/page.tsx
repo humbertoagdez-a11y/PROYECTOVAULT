@@ -23,10 +23,8 @@ export default function Home() {
   const [isWinner, setIsWinner] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  // Estado para el modal del QR de Telegram
   const [showQR, setShowQR] = useState(false);
 
-  // Datos financieros y Semilla
   const capitalSemilla = 0.4532; 
   const totalEth = capitalSemilla + pozoReal;
   const pozoUsd = (totalEth * ethPrice).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -167,7 +165,6 @@ export default function Home() {
 
       <section className="max-w-6xl mx-auto px-4 md:px-6 text-center mt-12 md:mt-24">
         
-        {/* TÍTULO PRINCIPAL DE IMPACTO */}
         <h1 className="text-5xl md:text-[95px] font-bold tracking-tighter mb-4 md:mb-6 leading-none uppercase">
           EL ÚLTIMO <br/> 
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-gray-200 via-gray-400 to-gray-600 italic font-light text-3xl md:text-7xl">
@@ -178,13 +175,11 @@ export default function Home() {
           Protocolo de Liquidez Inmutable ● Red Base
         </p>
         
-        {/* PANEL CENTRAL: POZO Y RELOJ */}
         <div className="bg-[#0D0D0D] border border-white/10 rounded-[40px] md:rounded-[60px] p-6 md:p-16 shadow-[0_0_80px_rgba(0,0,0,0.6)] relative overflow-hidden max-w-5xl mx-auto">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-amber-500 to-transparent"></div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-10">
             
-            {/* PANEL POZO */}
             <div className="bg-gradient-to-b from-white/[0.04] to-transparent border border-white/5 rounded-[30px] p-8 md:p-14 text-center shadow-inner">
               <p className="text-[11px] md:text-[12px] text-gray-500 uppercase tracking-widest font-black mb-6">Capital Acumulado</p>
               <div className="flex items-baseline justify-center gap-3 mb-2">
@@ -200,7 +195,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* PANEL RELOJ */}
             <div className="bg-gradient-to-b from-white/[0.04] to-transparent border border-white/5 rounded-[30px] p-8 md:p-14 flex flex-col justify-center text-center shadow-inner">
               <p className="text-[11px] md:text-[12px] text-gray-500 uppercase tracking-widest font-black mb-8">Tiempo Restante</p>
               
@@ -240,7 +234,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* INDICADOR DE LIDERAZGO EN VIVO */}
           {!isFinished && isWinner && (
             <div className="mb-8 p-4 bg-green-500/10 border border-green-500/30 rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.2)] animate-pulse">
               <p className="text-green-400 font-black tracking-widest text-[12px] md:text-[14px] uppercase flex items-center justify-center gap-2">
@@ -249,7 +242,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* BOTONES DINÁMICOS */}
           {isFinished ? (
             isWinner ? (
               <button onClick={ejecutarReclamo} disabled={isBuying} className="w-full py-6 md:py-8 bg-green-600 text-white rounded-[30px] md:rounded-[40px] font-black text-sm md:text-lg uppercase tracking-[0.4em] hover:bg-green-500 transition-all shadow-[0_0_40px_rgba(34,197,94,0.6)] active:scale-95 mb-12 animate-bounce">
@@ -266,7 +258,6 @@ export default function Home() {
             </button>
           )}
           
-          {/* INSTRUCCIONES */}
           <div className="p-8 md:p-12 bg-white/[0.02] border border-white/10 rounded-[35px] md:rounded-[45px]">
             <h3 className="text-[13px] md:text-[16px] text-amber-500 uppercase tracking-[0.3em] font-black mb-10 italic">Instrucciones de Participación</h3>
             
@@ -311,15 +302,27 @@ export default function Home() {
         <p className="text-[10px] tracking-[1em] font-black uppercase px-4 leading-relaxed">VAULTUM PROTOCOL ● BASE NETWORK</p>
       </footer>
 
-      {/* BOTÓN FLOTANTE Y MODAL DE TELEGRAM */}
+      {/* BOTÓN FLOTANTE Y MODAL DE SOPORTE */}
       <div className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[200] flex flex-col items-end">
         {showQR && (
-          <div className="mb-4 p-5 bg-[#050505] border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.9)] flex flex-col items-center transform transition-all duration-300 ease-out origin-bottom-right">
-            <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-3 font-bold">Únete a la comunidad</p>
+          <div className="mb-4 p-5 bg-[#050505] border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.9)] flex flex-col items-center transform transition-all duration-300 ease-out origin-bottom-right w-64">
             
-            <div className="relative w-48 h-56 mb-4 rounded-xl overflow-hidden border border-white/5 bg-black flex justify-center items-center">
-              {/* IMPORTANTE: Guarda la imagen del QR que subiste con el nombre exacto 'qr-telegram.png' dentro de la carpeta 'public' de tu proyecto Vercel/Next.js */}
-              <img src="/qr-telegram.png" alt="Telegram QR Vaultum" className="object-contain w-full h-full p-2" />
+            <p className="text-[12px] text-amber-500 uppercase tracking-widest mb-1 font-black">Soporte en Vivo</p>
+            <p className="text-[10px] text-gray-400 mb-4 text-center leading-relaxed">
+              Te estaremos ayudando ante cualquier duda.
+            </p>
+            
+            <div className="relative w-48 h-48 mb-5 rounded-xl overflow-hidden border border-white/5 bg-black flex justify-center items-center p-2">
+              {/* Imagen con fallback integrado en caso de que el enlace proveído no cargue directamente */}
+              <img 
+                src="https://i.ibb.co/6c2yG1P/qr.png" 
+                onError={(e) => {
+                  e.currentTarget.onerror = null; 
+                  e.currentTarget.src = "https://i.ibb.co/LDQ97j8q"; 
+                }}
+                alt="QR Soporte Vaultum" 
+                className="object-contain w-full h-full" 
+              />
             </div>
             
             <a
@@ -328,7 +331,7 @@ export default function Home() {
               rel="noopener noreferrer"
               className="w-full py-3 bg-[#2AABEE]/10 border border-[#2AABEE]/30 text-[#2AABEE] rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-[#2AABEE] hover:text-white transition-all text-center shadow-[0_0_15px_rgba(42,171,238,0.15)] hover:shadow-[0_0_20px_rgba(42,171,238,0.4)]"
             >
-              ABRIR TELEGRAM
+              CONTACTAR SOPORTE
             </a>
           </div>
         )}
@@ -344,7 +347,6 @@ export default function Home() {
               <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
             </svg>
           )}
-          {/* Alerta de notificación visual parpadeante */}
           {!showQR && <span className="absolute top-0 right-0 w-3 h-3 bg-[#2AABEE] border-2 border-black rounded-full animate-pulse"></span>}
         </button>
       </div>
