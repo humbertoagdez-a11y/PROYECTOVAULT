@@ -313,13 +313,8 @@ export default function Home() {
             </p>
             
             <div className="relative w-48 h-48 mb-5 rounded-xl overflow-hidden border border-white/5 bg-black flex justify-center items-center p-2">
-              {/* Imagen con fallback integrado en caso de que el enlace proveído no cargue directamente */}
               <img 
-                src="https://i.ibb.co/6c2yG1P/qr.png" 
-                onError={(e) => {
-                  e.currentTarget.onerror = null; 
-                  e.currentTarget.src = "https://i.ibb.co/LDQ97j8q"; 
-                }}
+                src="https://i.ibb.co/twZYrj4N/8f739bb1-3dbc-4def-9618-afb598d1db77.png" 
                 alt="QR Soporte Vaultum" 
                 className="object-contain w-full h-full" 
               />
