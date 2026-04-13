@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // ... otras configuraciones (como rewrites, headers, etc., si las tienes)
+  /* Aquí van otras opciones de configuración si las tienes, 
+     pero la sección 'eslint' debe estar vacía o borrada. */
 };
 
 export default nextConfig;
