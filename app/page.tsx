@@ -22,6 +22,9 @@ export default function Home() {
   const [isFinished, setIsFinished] = useState(false);
   const [isWinner, setIsWinner] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // Estado para el modal del QR de Telegram
+  const [showQR, setShowQR] = useState(false);
 
   // Datos financieros y Semilla
   const capitalSemilla = 0.4532; 
@@ -42,7 +45,6 @@ export default function Home() {
 
       setPozoReal(parseFloat(ethers.formatEther(pozoWei)));
       
-      // Lógica de Certeza: ¿Es el usuario conectado el líder actual?
       if (currentWallet && currentWallet.toLowerCase() === ultimoB.toLowerCase()) {
         setIsWinner(true);
       } else {
@@ -53,7 +55,6 @@ export default function Home() {
         const now = Math.floor(Date.now() / 1000);
         let diff = Number(tiempoFin) - now;
         
-        // COMPENSACIÓN ESTRATÉGICA: 7 Días
         const sieteDiasEnSegundos = 7 * 24 * 3600;
         diff += sieteDiasEnSegundos;
         
@@ -136,7 +137,6 @@ export default function Home() {
     cargarDatos();
   }, []);
 
-  // Escuchar cambios de billetera en tiempo real
   useEffect(() => {
     if ((window as any).ethereum) {
       (window as any).ethereum.on('accountsChanged', (accounts: string[]) => {
@@ -152,7 +152,7 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#000000] text-white font-sans overflow-x-hidden pb-20 selection:bg-amber-500/30">
+    <main className="min-h-screen bg-[#000000] text-white font-sans overflow-x-hidden pb-20 selection:bg-amber-500/30 relative">
       
       {/* NAVBAR */}
       <nav className="w-full border-b border-white/10 bg-[#050505]/90 backdrop-blur-xl sticky top-0 z-[100] px-6 md:px-12 h-20 flex justify-between items-center shadow-2xl">
@@ -249,7 +249,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* BOTONES DINÁMICOS: COMPRA / SELLO / RECLAMO */}
+          {/* BOTONES DINÁMICOS */}
           {isFinished ? (
             isWinner ? (
               <button onClick={ejecutarReclamo} disabled={isBuying} className="w-full py-6 md:py-8 bg-green-600 text-white rounded-[30px] md:rounded-[40px] font-black text-sm md:text-lg uppercase tracking-[0.4em] hover:bg-green-500 transition-all shadow-[0_0_40px_rgba(34,197,94,0.6)] active:scale-95 mb-12 animate-bounce">
@@ -266,12 +266,11 @@ export default function Home() {
             </button>
           )}
           
-          {/* INSTRUCCIONES MEJORADAS Y CLARAS */}
+          {/* INSTRUCCIONES */}
           <div className="p-8 md:p-12 bg-white/[0.02] border border-white/10 rounded-[35px] md:rounded-[45px]">
             <h3 className="text-[13px] md:text-[16px] text-amber-500 uppercase tracking-[0.3em] font-black mb-10 italic">Instrucciones de Participación</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 text-left md:text-center">
-              
               <div className="flex flex-col items-start md:items-center p-4">
                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xl md:text-2xl font-black mb-4 shadow-[0_0_20px_rgba(245,158,11,0.15)]">1</div>
                  <p className="text-[14px] md:text-[16px] font-black text-white uppercase mb-2 tracking-wide">Instala y Fondea</p>
@@ -289,10 +288,8 @@ export default function Home() {
                  <p className="text-[14px] md:text-[16px] font-black text-white uppercase mb-2 tracking-wide">Aporta y Lidera</p>
                  <p className="text-[12px] md:text-[13px] text-gray-400 leading-relaxed">Tu ticket de 0.0008 ETH suma <span className="text-amber-500 font-bold">60 minutos</span> al reloj. Mientras seas el último en aportar, serás el líder visible de la bóveda.</p>
               </div>
-
             </div>
 
-            {/* SECCIÓN: QUÉ PASA SI GANO */}
             <div className="mt-8 pt-8 border-t border-white/5 text-left bg-black/20 p-6 rounded-3xl">
                <h4 className="text-white font-black uppercase text-[12px] md:text-[14px] mb-2 tracking-widest">¿Cómo retiro el dinero si gano?</h4>
                <p className="text-gray-400 text-[12px] leading-relaxed">Si el reloj llega a cero (00:00:00) y tú fuiste el último en aportar, el botón principal se transformará en una opción verde para <span className="text-white font-bold">"RECLAMAR BÓVEDA TOTAL"</span>. Al hacer clic, el Contrato Inteligente enviará todo el pozo acumulado directamente a tu billetera MetaMask conectada. Sin intermediarios, sin demoras.</p>
@@ -311,8 +308,46 @@ export default function Home() {
       </section>
 
       <footer className="mt-24 md:mt-32 pb-16 text-center opacity-30">
-        <p className="text-[10px] tracking-[1em] font-black uppercase px-4 leading-relaxed">VAULTUM PROTOCOL ● BASE NETWORK ● MOONSHOT 2026</p>
+        <p className="text-[10px] tracking-[1em] font-black uppercase px-4 leading-relaxed">VAULTUM PROTOCOL ● BASE NETWORK</p>
       </footer>
+
+      {/* BOTÓN FLOTANTE Y MODAL DE TELEGRAM */}
+      <div className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[200] flex flex-col items-end">
+        {showQR && (
+          <div className="mb-4 p-5 bg-[#050505] border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.9)] flex flex-col items-center transform transition-all duration-300 ease-out origin-bottom-right">
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-3 font-bold">Únete a la comunidad</p>
+            
+            <div className="relative w-48 h-56 mb-4 rounded-xl overflow-hidden border border-white/5 bg-black flex justify-center items-center">
+              {/* IMPORTANTE: Guarda la imagen del QR que subiste con el nombre exacto 'qr-telegram.png' dentro de la carpeta 'public' de tu proyecto Vercel/Next.js */}
+              <img src="/qr-telegram.png" alt="Telegram QR Vaultum" className="object-contain w-full h-full p-2" />
+            </div>
+            
+            <a
+              href="https://t.me/VaultumProtocol"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-3 bg-[#2AABEE]/10 border border-[#2AABEE]/30 text-[#2AABEE] rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-[#2AABEE] hover:text-white transition-all text-center shadow-[0_0_15px_rgba(42,171,238,0.15)] hover:shadow-[0_0_20px_rgba(42,171,238,0.4)]"
+            >
+              ABRIR TELEGRAM
+            </a>
+          </div>
+        )}
+
+        <button
+          onClick={() => setShowQR(!showQR)}
+          className="w-14 h-14 md:w-16 md:h-16 bg-[#0a0a0a] border border-white/10 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.6)] hover:border-[#2AABEE] hover:shadow-[0_0_30px_rgba(42,171,238,0.3)] transition-all group relative"
+        >
+          {showQR ? (
+            <span className="text-white text-2xl font-black">✕</span>
+          ) : (
+            <svg className="w-6 h-6 md:w-7 md:h-7 text-gray-400 group-hover:text-[#2AABEE] transition-colors" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+            </svg>
+          )}
+          {/* Alerta de notificación visual parpadeante */}
+          {!showQR && <span className="absolute top-0 right-0 w-3 h-3 bg-[#2AABEE] border-2 border-black rounded-full animate-pulse"></span>}
+        </button>
+      </div>
 
     </main>
   );
