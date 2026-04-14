@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import "./globals.css"; // Asegúrate de que este archivo exista en la carpeta app
+import { Analytics } from "@vercel/analytics/react";
+import "./globals.css"; 
 
 export const metadata: Metadata = {
   title: "Vaultum Protocol",
@@ -17,10 +18,13 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        {/* El favicon.ico debe estar en la carpeta 'public' */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Componente de Vercel para registrar el tráfico en tiempo real */}
+        <Analytics />
+      </body>
     </html>
   );
 }
